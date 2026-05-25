@@ -8,22 +8,15 @@ import kotlinx.coroutines.flow.Flow
 
 class SearchModelsUseCase(
     private val hfRepository: IHuggingFaceRepository,
-    private val deviceRepository: IDeviceRepository,
 ) {
+    /**
+     * Search models on HuggingFace Hub.
+     * Note: we do NOT filter by device tier here because the search API
+     * does not return file sizes for siblings.  Tier filtering happens
+     * only on the model detail page where individual file sizes are available.
+     */
     suspend operator fun invoke(query: SearchQuery): List<HFModel> {
-        val maxSize = deviceRepository.getCurrentTier().maxModelSizeBytes
-        return hfRepository.searchModels(query).let { models ->
-            if (maxSize > 0) {
-                models.filter { model ->
-                    model.siblings.any { file ->
-                        file.rfilename.endsWith(".gguf", ignoreCase = true) &&
-                            (file.size == null || file.size <= maxSize)
-                    }
-                }
-            } else {
-                models
-            }
-        }
+        return hfRepository.searchModels(query)
     }
 }
 

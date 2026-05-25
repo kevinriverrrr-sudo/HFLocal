@@ -17,21 +17,19 @@ class HuggingFaceApi(private val http: HttpClient) {
 
     /**
      * Search models on HuggingFace Hub.
-     * Returns an empty list on any network / parsing error.
+     * Re-throws on error so callers can show proper error UI.
      */
-    suspend fun searchModels(query: SearchQuery): List<HFModel> = try {
-        http.get("$API/models") {
-            parameter("search", query.query.ifEmpty { null })
-            parameter("author", query.author.ifEmpty { null })
-            parameter("pipeline_tag", query.pipelineTag.ifEmpty { null })
+    suspend fun searchModels(query: SearchQuery): List<HFModel> {
+        return http.get("$API/models") {
+            if (query.query.isNotBlank()) parameter("search", query.query)
+            if (query.author.isNotBlank()) parameter("author", query.author)
+            if (query.pipelineTag.isNotBlank()) parameter("pipeline_tag", query.pipelineTag)
             parameter("library", "gguf")
             parameter("sort", query.sort)
             parameter("direction", query.direction)
             parameter("limit", query.limit)
             parameter("offset", query.offset)
         }.body()
-    } catch (e: Exception) {
-        emptyList()
     }
 
     /**

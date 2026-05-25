@@ -45,7 +45,7 @@ val androidModule = module {
 
     // ViewModels
     viewModel { AuthViewModel(get()) }
-    viewModel { CatalogViewModel(get(), get()) }
+    viewModel { CatalogViewModel(get()) }
     viewModel { ModelDetailViewModel(get(), get()) }
     viewModel { (modelId: String) ->
         ChatViewModel(

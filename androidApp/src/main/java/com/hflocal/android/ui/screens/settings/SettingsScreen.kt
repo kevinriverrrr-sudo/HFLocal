@@ -231,7 +231,7 @@ fun SettingsScreen(nav: NavController) {
             SettingsRow(
                 icon = Icons.Default.Info,
                 title = "About",
-                subtitle = "HFLocal v1.0.0"
+                subtitle = "HFLocal v1.4.0"
             )
 
             Spacer(Modifier.height(24.dp))

@@ -35,12 +35,14 @@ fun AppNavigation() {
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
 
-    val showBottomBar = currentDestination?.route in listOf(
+    // Only show bottom bar on main tab destinations
+    val bottomBarRoutes = setOf(
         Screen.Catalog.route,
         Screen.MyModels.route,
         Screen.Downloads.route,
         Screen.Settings.route
     )
+    val showBottomBar = bottomBarRoutes.contains(currentDestination?.route)
 
     Scaffold(
         bottomBar = {
@@ -48,7 +50,7 @@ fun AppNavigation() {
                 NavigationBar(containerColor = HFColors.Surface) {
                     val tabs = listOf(
                         Triple(Screen.Catalog, "Catalog", Icons.Default.Explore),
-                        Triple(Screen.MyModels, "Models", Icons.Default.ModelTraining),
+                        Triple(Screen.MyModels, "Models", Icons.Default.Psychology),
                         Triple(Screen.Downloads, "Downloads", Icons.Default.Downloading),
                         Triple(Screen.Settings, "Settings", Icons.Default.Settings)
                     )
@@ -62,6 +64,7 @@ fun AppNavigation() {
                             } == true,
                             onClick = {
                                 nav.navigate(screen.route) {
+                                    // Pop up to the start destination and save state
                                     popUpTo(nav.graph.findStartDestination().id) {
                                         saveState = true
                                     }

@@ -26,7 +26,7 @@ val sharedModule = module {
     single<ISettingsRepository> { SettingsRepositoryImpl(get()) }
 
     // ── Use Cases ───────────────────────────────────────────────────
-    factory { SearchModelsUseCase(get(), get()) }
+    factory { SearchModelsUseCase(get()) }
     factory { GetModelDetailsUseCase(get()) }
     factory { GetDownloadedModelsUseCase(get()) }
     factory { DeleteModelUseCase(get()) }

@@ -31,16 +31,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.hflocal.shared.domain.repository.ISettingsRepository
 import com.hflocal.shared.ui.navigation.Screen
 import com.hflocal.shared.ui.theme.HFColors
 import kotlinx.coroutines.delay
-import org.koin.compose.koinInject
 
 @Composable
 fun SplashScreen(nav: NavController) {
-    val settingsRepo: ISettingsRepository = koinInject()
-
     // Fade-in animation for the logo
     val logoAlpha = remember { Animatable(0f) }
     val progress = remember { mutableFloatStateOf(0f) }
@@ -62,17 +58,10 @@ fun SplashScreen(nav: NavController) {
         // Ensure minimum 1.5s splash duration
         delay(300)
 
-        // Check for saved HF token to decide navigation target
-        val token = settingsRepo.getHfToken()
-        val target = if (!token.isNullOrBlank()) {
-            Screen.Catalog.route
-        } else {
-            Screen.Auth.route
-        }
-
+        // Go directly to catalog — no auth required
         if (!hasNavigated) {
             hasNavigated = true
-            nav.navigate(target) {
+            nav.navigate(Screen.Catalog.route) {
                 popUpTo(Screen.Splash.route) { inclusive = true }
             }
         }
@@ -123,7 +112,7 @@ fun SplashScreen(nav: NavController) {
 
             // Version
             Text(
-                text = "v1.0.0",
+                text = "v1.4.0",
                 fontSize = 12.sp,
                 color = HFColors.OnSurfaceMuted,
                 modifier = Modifier.alpha(logoAlpha.value)

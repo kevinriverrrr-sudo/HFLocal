@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -124,22 +125,23 @@ fun CatalogScreen(nav: NavController) {
 
         // Content
         when {
-            state.isLoading -> {
+            state.isLoading && state.models.isEmpty() -> {
                 LoadingState()
             }
-            state.error != null -> {
+            state.error != null && state.models.isEmpty() -> {
                 ErrorState(
                     message = state.error ?: "Unknown error",
-                    onRetry = { viewModel.loadModels() },
-                    onDismiss = { viewModel.clearError() }
+                    onRetry = { viewModel.loadModels() }
                 )
             }
             state.models.isEmpty() -> {
                 EmptyState(query = state.query)
             }
             else -> {
+                // Show models even if loading more (pull-to-refresh style)
                 ModelList(
                     models = state.models,
+                    isLoading = state.isLoading,
                     onModelClick = { model ->
                         nav.navigate(Screen.ModelDetail.createRoute(model.id))
                     }
@@ -169,8 +171,7 @@ private fun LoadingState() {
 @Composable
 private fun ErrorState(
     message: String,
-    onRetry: () -> Unit,
-    onDismiss: () -> Unit
+    onRetry: () -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -181,7 +182,7 @@ private fun ErrorState(
             modifier = Modifier.padding(32.dp)
         ) {
             Icon(
-                Icons.Default.ErrorOutline,
+                Icons.Default.WifiOff,
                 contentDescription = null,
                 tint = HFColors.Error,
                 modifier = Modifier.size(48.dp)
@@ -192,14 +193,24 @@ private fun ErrorState(
                 color = HFColors.Error,
                 style = MaterialTheme.typography.bodyMedium
             )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Check your internet connection and try again",
+                color = HFColors.OnSurfaceMuted,
+                style = MaterialTheme.typography.bodySmall
+            )
             Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onDismiss) {
-                    Text("Dismiss", color = HFColors.OnSurfaceMuted)
-                }
-                FilledTonalButton(onClick = onRetry) {
-                    Text("Retry", color = HFColors.OnSurface)
-                }
+            Button(
+                onClick = onRetry,
+                colors = ButtonDefaults.buttonColors(containerColor = HFColors.Primary)
+            ) {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Retry")
             }
         }
     }
@@ -232,6 +243,7 @@ private fun EmptyState(query: String) {
 @Composable
 private fun ModelList(
     models: List<HFModel>,
+    isLoading: Boolean,
     onModelClick: (HFModel) -> Unit
 ) {
     LazyColumn(
@@ -243,6 +255,22 @@ private fun ModelList(
             key = { models[it].id }
         ) { index ->
             ModelCard(model = models[index], onClick = { onModelClick(models[index]) })
+        }
+        if (isLoading) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = HFColors.Primary,
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+            }
         }
     }
 }
@@ -276,7 +304,7 @@ private fun ModelCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (model.author.isNotBlank()) "${model.author}/${model.modelId}"
-                               else model.modelId,
+                               else model.id,
                         color = HFColors.OnBackground,
                         style = MaterialTheme.typography.titleLarge,
                         maxLines = 1
@@ -345,10 +373,7 @@ private fun ModelCard(
                 }
                 Spacer(Modifier.width(8.dp))
                 Button(
-                    onClick = {
-                        // Navigate to model detail where download is available
-                        onClick()
-                    },
+                    onClick = onClick,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = HFColors.Primary
                     )

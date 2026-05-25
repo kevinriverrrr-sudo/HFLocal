@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hflocal.shared.domain.model.HFModel
 import com.hflocal.shared.domain.model.SearchQuery
-import com.hflocal.shared.domain.repository.IDeviceRepository
 import com.hflocal.shared.domain.usecase.SearchModelsUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -18,14 +17,13 @@ data class CatalogUiState(
     val query: String = "",
     val models: List<HFModel> = emptyList(),
     val isLoading: Boolean = false,
+    val isFirstLoad: Boolean = true,
     val error: String? = null,
-    val selectedFilter: Int = 0,
-    val tier: String = ""
+    val selectedFilter: Int = 0
 )
 
 class CatalogViewModel(
-    private val searchModels: SearchModelsUseCase,
-    private val deviceRepo: IDeviceRepository
+    private val searchModels: SearchModelsUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CatalogUiState())
@@ -54,17 +52,12 @@ class CatalogViewModel(
     }
 
     init {
-        viewModelScope.launch {
-            try {
-                val tier = deviceRepo.getCurrentTier()
-                _state.update { it.copy(tier = tier.name) }
-            } catch (_: Exception) { }
-            loadModels()
-        }
+        loadModels()
     }
 
     fun loadModels() {
-        viewModelScope.launch {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
                 val current = _state.value
@@ -77,11 +70,18 @@ class CatalogViewModel(
                         limit = 30
                     )
                 )
-                _state.value = current.copy(models = result, isLoading = false)
+                _state.value = current.copy(
+                    models = result,
+                    isLoading = false,
+                    isFirstLoad = false
+                )
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Search failed"
+                    isFirstLoad = false,
+                    error = "Failed to load models: ${e.message}"
                 )
             }
         }
