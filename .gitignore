@@ -1,0 +1,10 @@
+.gradle/
+build/
+.idea/
+*.iml
+local.properties
+*.hprof
+.DS_Store
+desktopApp/build/
+androidApp/build/
+shared/build/
