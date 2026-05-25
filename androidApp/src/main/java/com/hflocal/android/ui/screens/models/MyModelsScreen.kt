@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.hflocal.shared.domain.model.DownloadedModel
 import com.hflocal.shared.ui.navigation.Screen
 import com.hflocal.shared.ui.theme.HFColors
 import org.koin.androidx.compose.koinViewModel
@@ -132,10 +133,10 @@ fun MyModelsScreen(nav: NavController) {
 
 @Composable
 private fun StorageUsageCard(uiState: MyModelsUiState) {
-    val totalSizeGb = uiState.totalSizeBytes / (1024.0 * 1024 * 1024)
-    val freeSpaceGb = uiState.freeSpaceBytes / (1024.0 * 1024 * 1024)
+    val totalSizeGb = uiState.totalSizeBytes.toDouble() / (1024.0 * 1024 * 1024)
+    val freeSpaceGb = uiState.freeSpaceBytes.toDouble() / (1024.0 * 1024 * 1024)
     val usageFraction = if (freeSpaceGb > 0) {
-        (totalSizeGb / freeSpaceGb).coerceIn(0f, 1f)
+        (totalSizeGb / freeSpaceGb).toFloat().coerceIn(0f, 1f)
     } else {
         0f
     }

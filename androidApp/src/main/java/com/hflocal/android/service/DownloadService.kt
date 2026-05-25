@@ -19,18 +19,11 @@ import com.hflocal.android.MainActivity
 import com.hflocal.android.HFLocalApplication
 import com.hflocal.shared.domain.model.DownloadedModel
 import com.hflocal.shared.domain.repository.IModelRepository
-import io.ktor.client.HttpClient
-import io.ktor.client.request.header
-import io.ktor.client.request.prepareGet
-import io.ktor.client.statement.HttpStatement
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.core.readAvailable
 import kotlinx.coroutines.coroutineScope
 import org.koin.java.KoinJavaComponent.inject
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.security.MessageDigest
 import kotlin.math.roundToInt
 
@@ -125,7 +118,6 @@ class DownloadService(
 
     // ── Koin‑injected dependencies (late‑init because CoroutineWorker ─────
     //   receives context/params via constructor, not Koin) ──────────────────
-    private val httpClient: HttpClient by inject(HttpClient::class.java)
     private val modelRepository: IModelRepository by inject(IModelRepository::class.java)
 
     // ── Pause flag (checked between buffer reads) ──────────────────────────
@@ -220,32 +212,27 @@ class DownloadService(
         resumeFrom: Long,
         expectedSha: String?
     ): Pair<Long, String> {
-        setForeground(createForegroundInfo(modelId, fileName, 0))
+        setForeground(createForegroundInfo(modelId, fileName, 0f))
 
-        val statement: HttpStatement = httpClient.prepareGet(url) {
-            // Resume support via Range header
-            if (resumeFrom > 0L) {
-                downloadedBytes = resumeFrom
-                header(HttpHeaders.Range, "bytes=$resumeFrom-")
-            }
+        val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        connection.connectTimeout = 30_000
+        connection.readTimeout = 60_000
+        connection.instanceFollowRedirects = true
+        if (resumeFrom > 0L) {
+            downloadedBytes = resumeFrom
+            connection.setRequestProperty("Range", "bytes=$resumeFrom-")
+        }
+        connection.connect()
+
+        val responseCode = connection.responseCode
+        if (responseCode != 200 && responseCode != 206) {
+            connection.disconnect()
+            throw IllegalStateException("HTTP $responseCode: download failed for $fileName")
         }
 
-        // BUG-14 fix: close response on status check failure
-        val response = statement.execute()
-        try {
-            if (response.status != HttpStatusCode.OK &&
-                response.status != HttpStatusCode.PartialContent
-            ) {
-                throw IllegalStateException("HTTP ${response.status.value}: ${response.status.description}")
-            }
-        } catch (e: Exception) {
-            response.close()
-            throw e
-        }
-
-        val contentLength = response.contentLength() ?: -1L
-        val totalSize = if (resumeFrom > 0L) resumeFrom + contentLength else contentLength
-        val append = resumeFrom > 0L
+        val contentLength = connection.contentLengthLong
+        val totalSize = if (resumeFrom > 0L && responseCode == 206) resumeFrom + contentLength else contentLength
+        val append = resumeFrom > 0L && responseCode == 206
 
         // Track speed / ETA
         var speedWindowStart = System.currentTimeMillis()
@@ -254,7 +241,7 @@ class DownloadService(
         // BUG-02 fix: throttle setForeground() to once per second
         var lastNotifUpdate = 0L
 
-        val channel: ByteReadChannel = response.body()
+        val input: InputStream = connection.inputStream
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
 
         if (!append) {
@@ -263,24 +250,24 @@ class DownloadService(
 
         // When resuming, open in append mode
         val fos = if (append) {
-            targetFile.appendOutputStream()
+            java.io.FileOutputStream(targetFile, true)
         } else {
             targetFile.outputStream()
         }
 
         fos.use { outputStream ->
-            while (!channel.isClosedForRead) {
+            var bytesRead: Int
+            while (input.read(buffer).also { bytesRead = it } != -1) {
                 if (paused) {
                     // Pause requested — stop cleanly
-                    return@downloadFile Pair(downloadedBytes, targetFile.absolutePath)
+                    input.close()
+                    connection.disconnect()
+                    return Pair(downloadedBytes, targetFile.absolutePath)
                 }
 
-                val read = channel.readAvailable(buffer)
-                if (read <= 0) continue
-
-                outputStream.write(buffer, 0, read)
-                downloadedBytes += read
-                speedWindowBytes += read
+                outputStream.write(buffer, 0, bytesRead)
+                downloadedBytes += bytesRead
+                speedWindowBytes += bytesRead
 
                 // Calculate speed every ~1 second
                 val now = System.currentTimeMillis()
@@ -317,6 +304,9 @@ class DownloadService(
                 }
             }
         }
+
+        input.close()
+        connection.disconnect()
 
         // ── SHA‑256 verification ───────────────────────────────────────────
         if (expectedSha != null) {

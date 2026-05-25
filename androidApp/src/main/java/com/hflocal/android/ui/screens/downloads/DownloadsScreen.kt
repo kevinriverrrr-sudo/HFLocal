@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.hflocal.shared.domain.model.DownloadedModel
 import com.hflocal.shared.ui.theme.HFColors
 import org.koin.androidx.compose.koinViewModel
 

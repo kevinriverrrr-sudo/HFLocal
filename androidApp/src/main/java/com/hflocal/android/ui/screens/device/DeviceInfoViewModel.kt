@@ -126,11 +126,7 @@ class DeviceInfoViewModel(
         // GPU info — GLES20.glGetString requires a GL context which is not available
         // on Dispatchers.IO. Use Build properties as a fallback.
         // A TextureView / GLSurfaceView callback would be needed for real GPU info.
-        val gpuRenderer = try {
-            Build.SOC_MODEL.ifEmpty { "Unknown" } + " / ${Build.GPU}"
-        } catch (_: Exception) {
-            "Could not detect"
-        }
+        val gpuRenderer = Build.SOC_MODEL.ifEmpty { "Unknown" }
 
         // Vulkan support check
         val supportsVulkan = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&

@@ -28,7 +28,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -129,7 +129,7 @@ fun CatalogScreen(nav: NavController) {
             }
             state.error != null -> {
                 ErrorState(
-                    message = state.error,    // Smart-cast: non-null inside this branch
+                    message = state.error ?: "Unknown error",
                     onRetry = { viewModel.loadModels() },
                     onDismiss = { viewModel.clearError() }
                 )
@@ -344,12 +344,12 @@ private fun ModelCard(
                     Text("Details", color = HFColors.OnSurface)
                 }
                 Spacer(Modifier.width(8.dp))
-                FilledButton(
+                Button(
                     onClick = {
                         // Navigate to model detail where download is available
                         onClick()
                     },
-                    colors = ButtonDefaults.filledButtonColors(
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = HFColors.Primary
                     )
                 ) {

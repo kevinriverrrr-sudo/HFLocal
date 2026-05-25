@@ -34,7 +34,7 @@ class HFLocalApplication : Application() {
                 file.writeText(log.toString())
             } catch (_: Exception) {}
             // Let the system handle the crash normally
-            defaultUncaughtExceptionHandler?.uncaughtException(thread, throwable)
+            Thread.getDefaultUncaughtExceptionHandler()?.uncaughtException(thread, throwable)
         }
 
         // Initialize Koin
@@ -50,7 +50,7 @@ class HFLocalApplication : Application() {
         // Pre-warm database on IO thread to avoid main-thread I/O later
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                getKoin().get<SqlDriver>()
+                org.koin.mp.KoinPlatform.getKoin().get<SqlDriver>()
             } catch (_: Exception) { /* handled by AndroidModule retry logic */ }
         }
     }

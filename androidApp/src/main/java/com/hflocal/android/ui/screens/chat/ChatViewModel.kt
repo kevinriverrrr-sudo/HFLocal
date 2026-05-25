@@ -143,8 +143,9 @@ class ChatViewModel(
                 val words = fullResponse.split(" ")
                 var currentContent = ""
 
+                val currentJob = coroutineContext[Job]
                 words.forEachIndexed { index, word ->
-                    if (!coroutineContext.isActive) return@forEach
+                    if (currentJob?.isActive == false) return@forEachIndexed
 
                     currentContent = if (currentContent.isEmpty()) word
                     else "$currentContent $word"
@@ -248,8 +249,9 @@ class ChatViewModel(
                 val words = fullResponse.split(" ")
                 var currentContent = ""
 
+                val genJob = coroutineContext[Job]
                 words.forEachIndexed { index, word ->
-                    if (!coroutineContext.isActive) return@forEach
+                    if (genJob?.isActive == false) return@forEachIndexed
 
                     currentContent = if (currentContent.isEmpty()) word
                     else "$currentContent $word"

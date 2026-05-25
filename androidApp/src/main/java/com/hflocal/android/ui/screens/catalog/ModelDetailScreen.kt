@@ -31,7 +31,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -150,7 +150,7 @@ fun ModelDetailScreen(
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            state.error,
+                            state.error ?: "Unknown error",
                             color = HFColors.Error,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -501,11 +501,11 @@ private fun GgufFileCard(
             Spacer(Modifier.height(12.dp))
 
             // Download button
-            FilledButton(
+            Button(
                 onClick = onDownload,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.filledButtonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = if (compatible) HFColors.Primary
                                    else HFColors.SurfaceVariant
                 ),

@@ -1,11 +1,14 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
 android {
     namespace = "com.hflocal.android"; compileSdk = 35
     defaultConfig { applicationId = "com.hflocal.android"; minSdk = 28; targetSdk = 35; versionCode = 1; versionName = "1.0.0" }
+    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+    kotlinOptions { jvmTarget = "17" }
     signingConfigs { create("release") { storeFile = file("${rootProject.projectDir}/mobileai-key.jks"); storePassword = "mobileai123"; keyAlias = "mobileai"; keyPassword = "mobileai123" } }
     buildTypes { release { isMinifyEnabled = false; isShrinkResources = false; signingConfig = signingConfigs.getByName("release"); proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro") } }
     buildFeatures { compose = true; buildConfig = true }
@@ -13,6 +16,7 @@ android {
 }
 dependencies {
     implementation(project(":shared"))
+    implementation(libs.ktor.client.core); implementation(libs.ktor.client.okhttp); implementation(libs.sql.delight.android)
     implementation(libs.kotlinx.coroutines.android); implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.core.ktx); implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose); implementation(libs.androidx.lifecycle.viewmodel.compose)

@@ -30,6 +30,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +55,7 @@ import com.hflocal.shared.domain.repository.IDeviceRepository
 import com.hflocal.shared.ui.theme.HFColors
 import org.koin.compose.koinInject
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeviceInfoScreen(nav: NavController) {
     val context = LocalContext.current
@@ -125,7 +127,7 @@ fun DeviceInfoScreen(nav: NavController) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = state.error,
+                    text = state.error ?: "Unknown error",
                     color = HFColors.OnSurfaceMuted,
                     style = MaterialTheme.typography.bodyMedium
                 )
