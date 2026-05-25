@@ -5,6 +5,17 @@ build/
 local.properties
 *.hprof
 .DS_Store
+
+# Build outputs
+*.apk
+*.aab
+*.aar
+
+# Signing / keystore
+*.jks
+*.keystore
+keystore.properties
+
 desktopApp/build/
 androidApp/build/
 shared/build/

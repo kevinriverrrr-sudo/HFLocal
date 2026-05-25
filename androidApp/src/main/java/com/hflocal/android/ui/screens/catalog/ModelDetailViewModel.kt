@@ -6,6 +6,8 @@ import com.hflocal.shared.domain.model.HFModel
 import com.hflocal.shared.domain.model.ModelFile
 import com.hflocal.shared.domain.repository.IDeviceRepository
 import com.hflocal.shared.domain.usecase.GetModelDetailsUseCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,8 +28,11 @@ class ModelDetailViewModel(
     private val _state = MutableStateFlow(ModelDetailUiState())
     val state: StateFlow<ModelDetailUiState> = _state.asStateFlow()
 
+    private var loadJob: Job? = null
+
     fun loadModel(modelId: String) {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
                 val tier = deviceRepo.getCurrentTier()
@@ -37,6 +42,8 @@ class ModelDetailViewModel(
                     isLoading = false,
                     maxModelSizeBytes = tier.maxModelSizeBytes
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,

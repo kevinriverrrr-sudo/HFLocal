@@ -9,6 +9,7 @@ import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ForegroundInfo
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.Operation
 import androidx.work.WorkManager
@@ -29,6 +30,7 @@ import io.ktor.utils.io.core.readAvailable
 import kotlinx.coroutines.coroutineScope
 import org.koin.java.KoinJavaComponent.inject
 import java.io.File
+import java.io.IOException
 import java.security.MessageDigest
 import kotlin.math.roundToInt
 
@@ -68,7 +70,11 @@ class DownloadService(
         const val KEY_ERROR     = "error"
 
         // ── Notification ──────────────────────────────────────────────────
-        private const val NOTIFICATION_ID = 1001
+        /** Derive a deterministic, per-download notification ID to avoid collisions
+         *  (BUG-01 fix: each model gets its own unique notification ID). */
+        private const val NOTIFICATION_BASE = 1000
+        private fun notificationId(modelId: String): Int =
+            (modelId.hashCode() and 0x7FFFFFFF) % 50000 + NOTIFICATION_BASE
 
         /** Build a deterministic unique work name so we can cancel / resume by model. */
         fun uniqueWorkName(modelId: String): String = "download_$modelId"
@@ -99,8 +105,13 @@ class DownloadService(
                 KEY_DOWNLOAD_URL to downloadUrl,
                 KEY_EXPECTED_SHA to expectedSha
             )
+            // BUG-04 fix: require network connectivity so retries don't fire while offline
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
             val request = OneTimeWorkRequestBuilder<DownloadService>()
                 .setInputData(data)
+                .setConstraints(constraints)
                 .build()
 
             return WorkManager.getInstance(context)
@@ -136,8 +147,15 @@ class DownloadService(
         val expectedSha = inputData.getString(KEY_EXPECTED_SHA)
         val resumeFrom  = inputData.getLong(KEY_RESUME_OFFSET, 0L)
 
-        val modelDir = File(context.getExternalFilesDir(null), "models/$author/$modelId")
-        if (!modelDir.exists()) modelDir.mkdirs()
+        // BUG-13 fix: strip author prefix from modelId to avoid nested dirs like
+        // models/TheBloke/TheBloke/llama-2-7b-gguf/
+        val safeModelName = modelId.removePrefix("$author/")
+
+        val modelDir = File(context.getExternalFilesDir(null), "models/$author/$safeModelName")
+        // BUG-08 fix: check mkdirs() return value
+        if (!modelDir.exists() && !modelDir.mkdirs()) {
+            throw IOException("Cannot create directory: ${modelDir.absolutePath}")
+        }
         val targetFile = File(modelDir, fileName)
 
         try {
@@ -166,7 +184,7 @@ class DownloadService(
             )
 
             // ── Show completion notification ───────────────────────────────
-            showCompletionNotification(fileName)
+            showCompletionNotification(modelId, fileName)
 
             Result.success(
                 workDataOf(
@@ -181,8 +199,10 @@ class DownloadService(
                     workDataOf(KEY_MODEL_ID to modelId)
                 )
             } else {
+                // BUG-09 fix: clean up partial file on failure when not resuming
+                if (resumeFrom == 0L) targetFile.delete()
                 modelRepository.updateDownloadProgress(modelId, -1f) // signal error
-                showFailureNotification(fileName, e.message ?: "Unknown error")
+                showFailureNotification(modelId, fileName, e.message ?: "Unknown error")
                 Result.retry()
             }
         }
@@ -200,7 +220,7 @@ class DownloadService(
         resumeFrom: Long,
         expectedSha: String?
     ): Pair<Long, String> {
-        setForeground(createForegroundInfo(fileName, 0))
+        setForeground(createForegroundInfo(modelId, fileName, 0))
 
         val statement: HttpStatement = httpClient.prepareGet(url) {
             // Resume support via Range header
@@ -210,11 +230,17 @@ class DownloadService(
             }
         }
 
+        // BUG-14 fix: close response on status check failure
         val response = statement.execute()
-        if (response.status != HttpStatusCode.OK &&
-            response.status != HttpStatusCode.PartialContent
-        ) {
-            throw IllegalStateException("HTTP ${response.status.value}: ${response.status.description}")
+        try {
+            if (response.status != HttpStatusCode.OK &&
+                response.status != HttpStatusCode.PartialContent
+            ) {
+                throw IllegalStateException("HTTP ${response.status.value}: ${response.status.description}")
+            }
+        } catch (e: Exception) {
+            response.close()
+            throw e
         }
 
         val contentLength = response.contentLength() ?: -1L
@@ -225,6 +251,8 @@ class DownloadService(
         var speedWindowStart = System.currentTimeMillis()
         var speedWindowBytes: Long = 0
         var lastSpeedBps: Long = 0
+        // BUG-02 fix: throttle setForeground() to once per second
+        var lastNotifUpdate = 0L
 
         val channel: ByteReadChannel = response.body()
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -271,30 +299,42 @@ class DownloadService(
                 }
 
                 modelRepository.updateDownloadProgress(modelId, progress)
-                setForeground(
-                    createForegroundInfo(
-                        fileName    = fileName,
-                        progress   = progress,
-                        speedBps   = lastSpeedBps,
-                        downloaded = downloadedBytes,
-                        total      = totalSize
+
+                // BUG-02 fix: throttle setForeground() to once per second to avoid
+                // excessive IPC calls that cause UI jank and battery drain
+                if (now - lastNotifUpdate >= 1_000L) {
+                    setForeground(
+                        createForegroundInfo(
+                            modelId     = modelId,
+                            fileName    = fileName,
+                            progress   = progress,
+                            speedBps   = lastSpeedBps,
+                            downloaded = downloadedBytes,
+                            total      = totalSize
+                        )
                     )
-                )
+                    lastNotifUpdate = now
+                }
             }
         }
 
-        // ── SHA‑256 verification (optional, log only) ─────────────────────
+        // ── SHA‑256 verification ───────────────────────────────────────────
         if (expectedSha != null) {
             try {
                 val sha = sha256Hex(targetFile)
                 if (sha.equals(expectedSha, ignoreCase = true)) {
                     android.util.Log.d("DownloadService", "SHA‑256 verified: $sha")
                 } else {
+                    // BUG-12 fix: delete corrupted file and throw instead of just logging
                     android.util.Log.w(
                         "DownloadService",
                         "SHA‑256 mismatch! expected=$expectedSha got=$sha"
                     )
+                    targetFile.delete()
+                    throw IOException("SHA-256 mismatch for $fileName: expected=$expectedSha got=$sha")
                 }
+            } catch (e: IOException) {
+                throw e  // re-throw SHA mismatch
             } catch (e: Exception) {
                 android.util.Log.w(
                     "DownloadService",
@@ -314,6 +354,7 @@ class DownloadService(
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun createForegroundInfo(
+        modelId: String,
         fileName: String,
         progress: Float,
         speedBps: Long = 0L,
@@ -347,10 +388,11 @@ class DownloadService(
             .setContentIntent(pendingIntent)
             .build()
 
-        return ForegroundInfo(NOTIFICATION_ID, notification)
+        // BUG-01 fix: use per-model notification ID to avoid collisions
+        return ForegroundInfo(notificationId(modelId), notification)
     }
 
-    private fun showCompletionNotification(fileName: String) {
+    private fun showCompletionNotification(modelId: String, fileName: String) {
         val notificationManager = context.getSystemService(
             NotificationManager::class.java
         )
@@ -361,10 +403,11 @@ class DownloadService(
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setAutoCancel(true)
             .build()
-        notificationManager.notify(NOTIFICATION_ID + 1, notification)
+        // BUG-01 fix: use per-model notification ID
+        notificationManager.notify(notificationId(modelId) + 1, notification)
     }
 
-    private fun showFailureNotification(fileName: String, error: String) {
+    private fun showFailureNotification(modelId: String, fileName: String, error: String) {
         val notificationManager = context.getSystemService(
             NotificationManager::class.java
         )
@@ -375,7 +418,8 @@ class DownloadService(
             .setSmallIcon(android.R.drawable.stat_notify_error)
             .setAutoCancel(true)
             .build()
-        notificationManager.notify(NOTIFICATION_ID + 2, notification)
+        // BUG-01 fix: use per-model notification ID
+        notificationManager.notify(notificationId(modelId) + 2, notification)
     }
 
     // ═══════════════════════════════════════════════════════════════════════

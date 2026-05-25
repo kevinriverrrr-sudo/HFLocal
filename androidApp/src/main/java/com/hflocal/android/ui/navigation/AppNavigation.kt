@@ -1,5 +1,6 @@
 package com.hflocal.android.ui.navigation
 
+import android.net.Uri
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -99,8 +100,16 @@ fun AppNavigation() {
                 route = Screen.ModelDetail.route,
                 arguments = listOf(navArgument("modelId") { type = NavType.StringType })
             ) { backStackEntry ->
-                val modelId = backStackEntry.arguments?.getString("modelId") ?: ""
-                ModelDetailScreen(nav, modelId)
+                val modelId = Uri.decode(backStackEntry.arguments?.getString("modelId") ?: "")
+                if (modelId.isBlank()) {
+                    Text(
+                        text = "Model not found",
+                        modifier = Modifier.padding(16.dp),
+                        color = HFColors.OnBackground
+                    )
+                } else {
+                    ModelDetailScreen(nav, modelId)
+                }
             }
             composable(Screen.MyModels.route) {
                 MyModelsScreen(nav)
@@ -108,8 +117,11 @@ fun AppNavigation() {
             composable(Screen.Downloads.route) {
                 DownloadsScreen()
             }
-            composable(Screen.Chat.route) { backStackEntry ->
-                val modelId = backStackEntry.arguments?.getString("modelId") ?: ""
+            composable(
+                route = Screen.Chat.route,
+                arguments = listOf(navArgument("modelId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val modelId = Uri.decode(backStackEntry.arguments?.getString("modelId") ?: "")
                 ChatScreen(nav, modelId)
             }
             composable(Screen.Settings.route) {

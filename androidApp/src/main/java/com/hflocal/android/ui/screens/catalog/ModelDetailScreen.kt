@@ -252,7 +252,7 @@ private fun ModelDetailContent(
                     }
 
                     // Gated badge
-                    if (model.gated) {
+                    if (model.gated != "false" && model.gated.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
                         Surface(
                             shape = RoundedCornerShape(8.dp),

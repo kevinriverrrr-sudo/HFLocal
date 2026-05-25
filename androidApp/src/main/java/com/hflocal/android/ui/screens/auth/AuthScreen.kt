@@ -122,6 +122,7 @@ fun AuthScreen(nav: NavController) {
             )
         } else {
             BrowserLoginTab(onContinue = {
+                viewModel.setGuestMode()
                 nav.navigate(Screen.Catalog.route) {
                     popUpTo(0) { inclusive = true }
                 }
@@ -132,6 +133,7 @@ fun AuthScreen(nav: NavController) {
 
         // Continue without account
         TextButton(onClick = {
+            viewModel.setGuestMode()
             nav.navigate(Screen.Catalog.route) {
                 popUpTo(0) { inclusive = true }
             }
@@ -195,7 +197,7 @@ private fun TokenLoginTab(
     }
 
     // Success state
-    if (state.user != null) {
+    state.user?.let { user ->
         Spacer(Modifier.height(16.dp))
         Card(
             colors = CardDefaults.cardColors(containerColor = HFColors.Surface),
@@ -216,13 +218,13 @@ private fun TokenLoginTab(
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
-                        "Logged in as ${state.user!!.name}",
+                        "Logged in as ${user.name}",
                         color = HFColors.OnBackground,
                         fontWeight = FontWeight.Medium
                     )
-                    if (state.user!!.fullname != null) {
+                    user.fullname?.let { fullname ->
                         Text(
-                            state.user!!.fullname!!,
+                            fullname,
                             color = HFColors.OnSurfaceMuted,
                             style = MaterialTheme.typography.bodySmall
                         )

@@ -129,7 +129,7 @@ fun CatalogScreen(nav: NavController) {
             }
             state.error != null -> {
                 ErrorState(
-                    message = state.error!!,
+                    message = state.error,    // Smart-cast: non-null inside this branch
                     onRetry = { viewModel.loadModels() },
                     onDismiss = { viewModel.clearError() }
                 )
@@ -307,7 +307,7 @@ private fun ModelCard(
                         )
                     }
                 }
-                if (model.gated) {
+                if (model.gated != "false" && model.gated.isNotEmpty()) {
                     Surface(
                         shape = RoundedCornerShape(50.dp),
                         color = HFColors.Warning.copy(alpha = 0.15f)

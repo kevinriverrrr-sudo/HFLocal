@@ -19,6 +19,7 @@ import com.hflocal.shared.domain.model.HFModel
 import com.hflocal.shared.domain.model.SearchQuery
 import com.hflocal.shared.domain.usecase.SearchModelsUseCase
 import com.hflocal.shared.ui.theme.HFColors
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.java.KoinJavaComponent.inject
 
@@ -48,6 +49,7 @@ fun DesktopCatalogScreen(
     // Initial load
     LaunchedEffect(Unit) {
         performSearch(
+            scope = coroutineScope,
             searchUseCase = searchUseCase,
             query = "",
             pipelineTag = "",
@@ -61,6 +63,7 @@ fun DesktopCatalogScreen(
     LaunchedEffect(searchQuery, selectedFilter) {
         kotlinx.coroutines.delay(300)
         performSearch(
+            scope = coroutineScope,
             searchUseCase = searchUseCase,
             query = searchQuery,
             pipelineTag = filterTags.getOrElse(selectedFilter) { "" },
@@ -183,6 +186,7 @@ fun DesktopCatalogScreen(
                         Spacer(Modifier.height(12.dp))
                         OutlinedButton(onClick = {
                             performSearch(
+                                scope = coroutineScope,
                                 searchUseCase = searchUseCase,
                                 query = searchQuery,
                                 pipelineTag = filterTags.getOrElse(selectedFilter) { "" },
@@ -303,7 +307,7 @@ private fun ModelCard(
                         )
                     }
                 }
-                if (model.gated) {
+                if (model.gated != "false" && model.gated.isNotEmpty()) {
                     Surface(
                         shape = RoundedCornerShape(50.dp),
                         color = HFColors.Warning.copy(alpha = 0.15f)
@@ -344,7 +348,7 @@ private fun ModelCard(
                     Text("Details", color = HFColors.OnSurface)
                 }
                 Spacer(Modifier.width(8.dp))
-                FilledButton(onClick = onClick) {
+                Button(onClick = onClick) {
                     Icon(
                         Icons.Default.Download,
                         contentDescription = null,
@@ -359,6 +363,7 @@ private fun ModelCard(
 }
 
 private fun performSearch(
+    scope: CoroutineScope,
     searchUseCase: SearchModelsUseCase,
     query: String,
     pipelineTag: String,
@@ -366,7 +371,7 @@ private fun performSearch(
     onError: (String) -> Unit,
     onModels: (List<HFModel>) -> Unit
 ) {
-    kotlinx.coroutines.GlobalScope.launch {
+    scope.launch {
         try {
             onLoading()
             val result = searchUseCase(

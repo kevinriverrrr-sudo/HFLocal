@@ -3,8 +3,12 @@ package com.hflocal.android
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import app.cash.sqldelight.db.SqlDriver
 import com.hflocal.android.di.androidModule
 import com.hflocal.shared.di.sharedModule
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -24,6 +28,13 @@ class HFLocalApplication : Application() {
 
         // Create notification channels
         createNotificationChannels()
+
+        // Pre-warm database on IO thread to avoid main-thread I/O later
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                getKoin().get<SqlDriver>()
+            } catch (_: Exception) { /* handled by AndroidModule retry logic */ }
+        }
     }
 
     private fun createNotificationChannels() {

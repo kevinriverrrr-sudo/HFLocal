@@ -19,7 +19,7 @@ data class MyModelsUiState(
 
 class MyModelsViewModel(
     private val getDownloadedModels: GetDownloadedModelsUseCase,
-    private val deleteModel: DeleteModelUseCase
+    private val deleteModelUseCase: DeleteModelUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(MyModelsUiState())
@@ -49,7 +49,7 @@ class MyModelsViewModel(
     fun deleteModel(modelId: String) {
         viewModelScope.launch {
             try {
-                deleteModel(modelId)
+                deleteModelUseCase(modelId)
             } catch (e: Exception) {
                 _state.update { it.copy(error = "Failed to delete model: ${e.message}") }
             }

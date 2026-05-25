@@ -69,4 +69,8 @@ class AuthViewModel(
     fun clearError() {
         _state.value = _state.value.copy(error = null)
     }
+
+    fun setGuestMode() {
+        _state.value = _state.value.copy(isLoggedIn = true)
+    }
 }

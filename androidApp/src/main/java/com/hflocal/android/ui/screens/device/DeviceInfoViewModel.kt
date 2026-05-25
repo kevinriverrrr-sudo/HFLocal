@@ -3,7 +3,6 @@ package com.hflocal.android.ui.screens.device
 import android.app.ActivityManager
 import android.content.Context
 import android.content.pm.PackageManager
-import android.opengl.GLES20
 import android.os.Build
 import android.os.Environment
 import android.os.StatFs
@@ -32,7 +31,8 @@ data class DeviceInfoState(
     val androidVersion: String = "Unknown",
     val sdkVersion: Int = 0,
     val isLoading: Boolean = true,
-    val maxModelSize: String = "N/A"
+    val maxModelSize: String = "N/A",
+    val error: String? = null
 )
 
 class DeviceInfoViewModel(
@@ -49,7 +49,7 @@ class DeviceInfoViewModel(
 
     fun refreshDevice() {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.value = _state.value.copy(isLoading = true)
+            _state.value = _state.value.copy(isLoading = true, error = null)
             try {
                 val info = collectDeviceInfo()
                 val tier = calculateTier(info)
@@ -86,7 +86,7 @@ class DeviceInfoViewModel(
                     maxModelSize = maxModelSize
                 )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false)
+                _state.value = _state.value.copy(isLoading = false, error = e.message ?: "Failed to detect device info")
             }
         }
     }
@@ -96,7 +96,13 @@ class DeviceInfoViewModel(
 
         // Total and available RAM
         val memoryInfo = ActivityManager.MemoryInfo()
-        activityManager?.getMemoryInfo(memoryInfo)
+        if (activityManager != null) {
+            activityManager.getMemoryInfo(memoryInfo)
+        } else {
+            // Use Runtime memory as fallback
+            memoryInfo.totalMem = Runtime.getRuntime().maxMemory()
+            memoryInfo.availMem = Runtime.getRuntime().freeMemory()
+        }
         val totalRamBytes = memoryInfo.totalMem
         val availableRamBytes = memoryInfo.availMem
 
@@ -104,28 +110,24 @@ class DeviceInfoViewModel(
         var freeStorageBytes = 0L
         var totalStorageBytes = 0L
         try {
-            val stat = StatFs(Environment.getDataDirectory().path)
+            val path = context.getExternalFilesDir(null) ?: context.filesDir
+            val stat = StatFs(path.absolutePath)
             freeStorageBytes = stat.availableBlocksLong * stat.blockSizeLong
             totalStorageBytes = stat.blockCountLong * stat.blockSizeLong
         } catch (_: Exception) {
-            // Fallback: use external storage
+            // Fallback: try data directory
             try {
-                val stat = StatFs(Environment.getExternalStorageDirectory().path)
+                val stat = StatFs(Environment.getDataDirectory().path)
                 freeStorageBytes = stat.availableBlocksLong * stat.blockSizeLong
                 totalStorageBytes = stat.blockCountLong * stat.blockSizeLong
-            } catch (_: Exception) {
-                // Leave at 0
-            }
+            } catch (_: Exception) { }
         }
 
-        // GPU renderer via GLES20
+        // GPU info — GLES20.glGetString requires a GL context which is not available
+        // on Dispatchers.IO. Use Build properties as a fallback.
+        // A TextureView / GLSurfaceView callback would be needed for real GPU info.
         val gpuRenderer = try {
-            val renderer = GLES20.glGetString(GLES20.GL_RENDERER)
-            if (renderer.isNullOrBlank() || renderer == "null") {
-                "Could not detect (no GL context)"
-            } else {
-                renderer
-            }
+            Build.SOC_MODEL.ifEmpty { "Unknown" } + " / ${Build.GPU}"
         } catch (_: Exception) {
             "Could not detect"
         }

@@ -1,6 +1,20 @@
 package com.hflocal.shared.domain.model
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-@Serializable data class HFModel(val id: String = "", val modelId: String = "", val author: String = "", val sha: String = "", val lastModified: String = "", val isPrivate: Boolean = false, val gated: Boolean = false, val downloads: Int = 0, val likes: Int = 0, val tags: List<String> = emptyList(), val pipelineTag: String = "", val siblings: List<ModelFile> = emptyList())
+@Serializable data class HFModel(
+    val id: String = "",
+    val modelId: String = "",
+    val author: String = "",
+    val sha: String = "",
+    val lastModified: String = "",
+    @SerialName("private") val isPrivate: Boolean = false,
+    val gated: String = "false",
+    val downloads: Int = 0,
+    val likes: Int = 0,
+    val tags: List<String> = emptyList(),
+    @SerialName("pipeline_tag") val pipelineTag: String = "",
+    val siblings: List<ModelFile> = emptyList()
+)
 @Serializable data class ModelFile(val rfilename: String = "", val size: Long? = null, val blobId: String? = null)
 @Serializable data class UserInfo(val name: String = "", val avatarUrl: String? = null, val fullname: String? = null)
 enum class PerformanceTier { TIER_1_HIGH_END, TIER_2_MID_RANGE, TIER_3_BUDGET, TIER_4_UNSUPPORTED; val maxModelSizeBytes: Long get() = when(this) { TIER_1_HIGH_END -> 6L*1024*1024*1024; TIER_2_MID_RANGE -> 3L*1024*1024*1024; TIER_3_BUDGET -> 1536L*1024*1024; TIER_4_UNSUPPORTED -> 0 } }

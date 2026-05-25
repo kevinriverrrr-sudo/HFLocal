@@ -6,6 +6,8 @@ import com.hflocal.shared.domain.model.HFModel
 import com.hflocal.shared.domain.model.SearchQuery
 import com.hflocal.shared.domain.repository.IDeviceRepository
 import com.hflocal.shared.domain.usecase.SearchModelsUseCase
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +29,8 @@ class CatalogViewModel(
 
     private val _state = MutableStateFlow(CatalogUiState())
     val state: StateFlow<CatalogUiState> = _state.asStateFlow()
+
+    private var searchJob: Job? = null
 
     companion object {
         val FILTER_LABELS = listOf(
@@ -84,6 +88,11 @@ class CatalogViewModel(
 
     fun updateQuery(query: String) {
         _state.value = _state.value.copy(query = query)
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(400)
+            loadModels()
+        }
     }
 
     fun setFilter(index: Int) {

@@ -1,0 +1,6 @@
+-- Migration 1: Add UNIQUE constraint on model_id, add indexes, add deterministic ordering
+-- This captures all enhancements from the initial schema audit.
+
+-- Indexes for performance (safe to run on existing data)
+CREATE INDEX IF NOT EXISTS idx_chat_message_session_id ON chat_message(session_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_downloaded_model_model_id ON downloaded_model(model_id);

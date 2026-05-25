@@ -2,14 +2,15 @@ package com.hflocal.shared.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.hflocal.shared.data.local.db.HFLocalDatabase
 import com.hflocal.shared.data.remote.HuggingFaceApi
 import com.hflocal.shared.domain.model.*
 import com.hflocal.shared.domain.repository.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 class HuggingFaceRepositoryImpl(
     private val api: HuggingFaceApi
@@ -80,7 +81,7 @@ class ModelRepositoryImpl(
     }
 
     override suspend fun saveModel(model: DownloadedModel) {
-        database.hFLocalDatabaseQueries.insertDownloadedModel(
+        database.hFLocalDatabaseQueries.insertOrReplaceDownloadedModel(
             model_id = model.modelId,
             author = model.author,
             file_name = model.fileName,
@@ -138,17 +139,17 @@ class ChatRepositoryImpl(
 
     override suspend fun createSession(session: ChatSession): Long {
         val now = System.currentTimeMillis()
-        database.hFLocalDatabaseQueries.insertChatSession(
-            model_id = session.modelId,
-            title = session.title.ifEmpty { "New Chat" },
-            created_at = if (session.createdAt > 0) session.createdAt else now,
-            updated_at = now,
-            system_prompt = session.systemPrompt,
-            message_count = 0
-        )
-        return database.hFLocalDatabaseQueries.selectAllChatSessions()
-            .executeAsList()
-            .maxOfOrNull { it.id } ?: 0L
+        return database.transactionWithResult {
+            database.hFLocalDatabaseQueries.insertChatSession(
+                model_id = session.modelId,
+                title = session.title.ifEmpty { "New Chat" },
+                created_at = if (session.createdAt > 0) session.createdAt else now,
+                updated_at = now,
+                system_prompt = session.systemPrompt,
+                message_count = 0
+            )
+            database.hFLocalDatabaseQueries.lastInsertedRowId().executeAsOne()
+        }
     }
 
     override suspend fun updateSession(session: ChatSession) {
@@ -163,10 +164,7 @@ class ChatRepositoryImpl(
     }
 
     override suspend fun deleteSession(sessionId: Long) {
-        database.transaction {
-            database.hFLocalDatabaseQueries.deleteMessagesBySessionId(sessionId)
-            database.hFLocalDatabaseQueries.deleteChatSession(sessionId)
-        }
+        database.hFLocalDatabaseQueries.deleteChatSession(sessionId)
     }
 
     override fun getMessages(sessionId: Long): Flow<List<ChatMessage>> {
@@ -194,17 +192,17 @@ class ChatRepositoryImpl(
     }
 
     override suspend fun addMessage(message: ChatMessage): Long {
-        database.hFLocalDatabaseQueries.insertMessage(
-            session_id = message.sessionId,
-            role = message.role.name,
-            content = message.content,
-            timestamp = if (message.timestamp > 0) message.timestamp else System.currentTimeMillis(),
-            image_path = message.imagePath,
-            is_streaming = if (message.isStreaming) 1L else 0L
-        )
-        return database.hFLocalDatabaseQueries.selectMessagesBySessionId(message.sessionId)
-            .executeAsList()
-            .maxOfOrNull { it.id } ?: 0L
+        return database.transactionWithResult {
+            database.hFLocalDatabaseQueries.insertMessage(
+                session_id = message.sessionId,
+                role = message.role.name,
+                content = message.content,
+                timestamp = if (message.timestamp > 0) message.timestamp else System.currentTimeMillis(),
+                image_path = message.imagePath,
+                is_streaming = if (message.isStreaming) 1L else 0L
+            )
+            database.hFLocalDatabaseQueries.lastInsertedRowId().executeAsOne()
+        }
     }
 
     override suspend fun updateMessage(message: ChatMessage) {
@@ -222,13 +220,19 @@ class SettingsRepositoryImpl(
 
     private val queries = database.hFLocalDatabaseQueries
 
-    private var cachedSettings: AppSettings? = null
-
     override fun getSettings(): Flow<AppSettings> {
-        return flow {
-            val settings = loadSettingsFromDb()
-            emit(settings)
-        }
+        return queries.getSettingByKey("app_settings")
+            .asFlow()
+            .mapToOneOrNull(Dispatchers.Default)
+            .map { json ->
+                if (json != null) {
+                    try {
+                        kotlinx.serialization.json.Json.decodeFromString<AppSettings>(json)
+                    } catch (_: Exception) { AppSettings() }
+                } else {
+                    AppSettings()
+                }
+            }
     }
 
     override suspend fun updateSettings(newSettings: AppSettings) {
@@ -237,14 +241,13 @@ class SettingsRepositoryImpl(
             newSettings
         )
         queries.setSetting(key = "app_settings", value_ = json)
-        cachedSettings = newSettings
     }
 
-    override suspend fun getHfToken(): String? {
+    override suspend fun getHfToken(): String? = withContext(Dispatchers.IO) {
         val row = try {
             queries.getSettingByKey("hf_token").executeAsOneOrNull()
         } catch (_: Exception) { null }
-        return row
+        row
     }
 
     override suspend fun setHfToken(token: String) {
@@ -255,19 +258,4 @@ class SettingsRepositoryImpl(
         queries.deleteSettingByKey("hf_token")
     }
 
-    private suspend fun loadSettingsFromDb(): AppSettings {
-        cachedSettings?.let { return it }
-        val json = try {
-            queries.getSettingByKey("app_settings").executeAsOneOrNull()
-        } catch (_: Exception) { null }
-        val settings = if (json != null) {
-            try {
-                kotlinx.serialization.json.Json.decodeFromString<com.hflocal.shared.domain.model.AppSettings>(json)
-            } catch (_: Exception) { AppSettings() }
-        } else {
-            AppSettings()
-        }
-        cachedSettings = settings
-        return settings
-    }
 }

@@ -7,7 +7,7 @@ android {
     namespace = "com.hflocal.android"; compileSdk = 35
     defaultConfig { applicationId = "com.hflocal.android"; minSdk = 28; targetSdk = 35; versionCode = 1; versionName = "1.0.0" }
     signingConfigs { create("release") { storeFile = file("${rootProject.projectDir}/mobileai-key.jks"); storePassword = "mobileai123"; keyAlias = "mobileai"; keyPassword = "mobileai123" } }
-    buildTypes { release { isMinifyEnabled = false; signingConfig = signingConfigs.getByName("release") } }
+    buildTypes { release { isMinifyEnabled = true; isShrinkResources = true; signingConfig = signingConfigs.getByName("release"); proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro") } }
     buildFeatures { compose = true; buildConfig = true }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 }

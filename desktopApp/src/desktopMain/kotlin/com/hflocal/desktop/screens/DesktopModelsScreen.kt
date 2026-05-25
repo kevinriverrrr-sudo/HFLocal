@@ -18,6 +18,7 @@ import com.hflocal.shared.domain.usecase.GetDownloadedModelsUseCase
 import com.hflocal.shared.ui.theme.HFColors
 import kotlinx.coroutines.launch
 import org.koin.java.KoinJavaComponent.inject
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +40,7 @@ fun DesktopModelsScreen(
     // Calculate storage usage
     val totalSizeBytes = models.filter { it.isDownloaded }.sumOf { it.fileSizeBytes.toDouble() }
     val totalSizeFormatted = formatFileSize(totalSizeBytes.toLong())
+    val maxDiskGB = File(System.getProperty("user.home")).freeSpace / (1024.0 * 1024 * 1024)
 
     // Delete confirmation dialog
     if (showDeleteDialog != null) {
@@ -52,7 +54,7 @@ fun DesktopModelsScreen(
                 )
             },
             confirmButton = {
-                FilledButton(
+                Button(
                     onClick = {
                         val modelId = showDeleteDialog
                         showDeleteDialog = null
@@ -68,7 +70,7 @@ fun DesktopModelsScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.filledButtonColors(containerColor = HFColors.Error)
+                    colors = ButtonDefaults.buttonColors(containerColor = HFColors.Error)
                 ) {
                     Text("Delete")
                 }
@@ -123,7 +125,7 @@ fun DesktopModelsScreen(
                     )
                     Spacer(Modifier.height(4.dp))
                     LinearProgressIndicator(
-                        progress = { (totalSizeBytes / (64.0 * 1024 * 1024 * 1024)).toFloat() },
+                        progress = { minOf(1f, (totalSizeBytes / (maxDiskGB * 1024 * 1024 * 1024)).toFloat()) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(4.dp),

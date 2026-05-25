@@ -8,7 +8,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
+import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import com.hflocal.desktop.di.desktopModule
 import com.hflocal.desktop.screens.*
 import com.hflocal.shared.di.sharedModule
@@ -16,24 +21,23 @@ import com.hflocal.shared.domain.model.HFModel
 import com.hflocal.shared.ui.theme.HFColors
 import com.hflocal.shared.ui.theme.HFLocalTheme
 import org.koin.core.context.startKoin
-import java.awt.Dimension
-import java.awt.Toolkit
 
-fun main() {
+fun main() = application {
     // Initialize Koin with shared and desktop modules
     startKoin {
         modules(sharedModule, desktopModule)
     }
 
     // Calculate centered window size: 1200x800 or 85% of screen, whichever is smaller
-    val screenSize = Toolkit.getDefaultToolkit().screenSize
-    val windowWidth = minOf(1200, (screenSize.width * 0.85).toInt()).coerceAtLeast(1024)
-    val windowHeight = minOf(800, (screenSize.height * 0.85).toInt()).coerceAtLeast(768)
+    val windowWidth = minOf(1200, (1280 * 0.85).toInt()).coerceAtLeast(1024)
+    val windowHeight = minOf(800, (1024 * 0.85).toInt()).coerceAtLeast(768)
 
-    androidx.compose.desktop.Window(
+    Window(
+        onCloseRequest = ::exitApplication,
         title = "HF Local",
-        size = Dimension(windowWidth, windowHeight),
-        centered = true,
+        state = rememberWindowState(
+            size = DpSize(windowWidth.dp, windowHeight.dp)
+        ),
         icon = null // Will be set via nativeDistributions
     ) {
         HFLocalTheme {
@@ -206,13 +210,13 @@ private fun ChatTabPlaceholder(
 
             Spacer(Modifier.height(24.dp))
 
-            FilledButton(
+            Button(
                 onClick = {
                     // Navigate to models tab by returning a special signal
                     // For simplicity, we'll just show a message
                 },
                 shape = MaterialTheme.shapes.extraLarge,
-                colors = ButtonDefaults.filledButtonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = HFColors.Primary
                 )
             ) {

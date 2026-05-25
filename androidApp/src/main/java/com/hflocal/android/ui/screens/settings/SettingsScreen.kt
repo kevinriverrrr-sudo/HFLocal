@@ -37,17 +37,34 @@ fun SettingsScreen(nav: NavController) {
     // Logout confirmation
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    // Error handling
-    uiState.error?.let { error ->
-        LaunchedEffect(error) {
+    // Snackbar for error display
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { msg ->
+            snackbarHostState.showSnackbar(message = msg)
             viewModel.clearError()
         }
     }
 
+    if (uiState.isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = HFColors.Primary)
+        }
+        return
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { innerPadding ->
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(HFColors.Background)
+            .padding(innerPadding)
     ) {
         TopAppBar(
             title = {
@@ -158,8 +175,10 @@ fun SettingsScreen(nav: NavController) {
                     title = "System Prompt",
                     subtitle = if (uiState.settings.defaultSystemPrompt.isEmpty())
                         "Not set"
-                    else
-                        uiState.settings.defaultSystemPrompt.take(30) + "...",
+                    else {
+                        val prompt = uiState.settings.defaultSystemPrompt
+                        if (prompt.length > 30) prompt.take(30) + "..." else prompt
+                    },
                     onClick = {
                         promptText = uiState.settings.defaultSystemPrompt
                         showPromptDialog = true
@@ -344,6 +363,7 @@ fun SettingsScreen(nav: NavController) {
             },
             containerColor = HFColors.SurfaceVariant
         )
+    }
     }
 }
 

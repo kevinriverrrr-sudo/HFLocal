@@ -5,7 +5,7 @@
 -- ---------- downloaded_model ----------
 CREATE TABLE downloaded_model (
     id              INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    model_id        TEXT    NOT NULL,
+    model_id        TEXT    NOT NULL UNIQUE,
     author          TEXT    NOT NULL DEFAULT '',
     file_name       TEXT    NOT NULL DEFAULT '',
     file_path       TEXT    NOT NULL DEFAULT '',
@@ -22,8 +22,8 @@ SELECT * FROM downloaded_model WHERE is_downloaded = 1 ORDER BY download_date DE
 selectDownloadedModelById:
 SELECT * FROM downloaded_model WHERE model_id = ?;
 
-insertDownloadedModel:
-INSERT INTO downloaded_model (
+insertOrReplaceDownloadedModel:
+INSERT OR REPLACE INTO downloaded_model (
     model_id, author, file_name, file_path,
     file_size_bytes, quantization, download_date,
     is_downloaded, download_progress
@@ -63,6 +63,9 @@ INSERT INTO chat_session (
     model_id, title, created_at, updated_at, system_prompt, message_count
 ) VALUES (?, ?, ?, ?, ?, ?);
 
+lastInsertedRowId:
+SELECT last_insert_rowid() AS rowid;
+
 updateChatSession:
 UPDATE chat_session SET
     model_id = ?,
@@ -88,7 +91,7 @@ CREATE TABLE chat_message (
 );
 
 selectMessagesBySessionId:
-SELECT * FROM chat_message WHERE session_id = ? ORDER BY timestamp ASC;
+SELECT * FROM chat_message WHERE session_id = ? ORDER BY timestamp ASC, id ASC;
 
 insertMessage:
 INSERT INTO chat_message (
@@ -115,3 +118,7 @@ INSERT OR REPLACE INTO app_setting (key, value) VALUES (?, ?);
 
 deleteSettingByKey:
 DELETE FROM app_setting WHERE key = ?;
+
+-- ---------- indexes ----------
+CREATE INDEX idx_chat_message_session_id ON chat_message(session_id);
+CREATE UNIQUE INDEX idx_downloaded_model_model_id ON downloaded_model(model_id);

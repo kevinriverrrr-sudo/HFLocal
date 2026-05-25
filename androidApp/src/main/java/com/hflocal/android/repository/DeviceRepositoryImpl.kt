@@ -34,7 +34,8 @@ class DeviceRepositoryImpl(private val context: Context) : IDeviceRepository {
     }
 
     private fun detectProfile(): DeviceProfile {
-        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            ?: return DeviceProfile()
         val memoryInfo = ActivityManager.MemoryInfo()
         activityManager.getMemoryInfo(memoryInfo)
 
@@ -77,7 +78,7 @@ class DeviceRepositoryImpl(private val context: Context) : IDeviceRepository {
         vulkan: Boolean,
         sdk: Int
     ): PerformanceTier {
-        val ramGB = ram / (1024 * 1024 * 1024)
+        val ramGB = ram.toDouble() / (1024.0 * 1024.0 * 1024.0)
         val isArm64 = arch.contains("arm64") || arch.contains("aarch64")
         val isArm = arch.contains("arm") || isArm64
 

@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.hflocal.shared.domain.model.AppSettings
 import com.hflocal.shared.domain.model.ProxyConfig
 import com.hflocal.shared.domain.model.ProxyType
+import com.hflocal.shared.domain.repository.ISettingsRepository
 import com.hflocal.shared.domain.usecase.GetSettingsUseCase
 import com.hflocal.shared.domain.usecase.UpdateSettingsUseCase
 import com.hflocal.shared.ui.theme.HFColors
@@ -31,6 +32,7 @@ fun DesktopSettingsScreen() {
 
     val getSettingsUseCase: GetSettingsUseCase by inject(GetSettingsUseCase::class.java)
     val updateSettingsUseCase: UpdateSettingsUseCase by inject(UpdateSettingsUseCase::class.java)
+    val settingsRepository: ISettingsRepository by inject(ISettingsRepository::class.java)
     val coroutineScope = rememberCoroutineScope()
 
     // Load settings
@@ -39,6 +41,8 @@ fun DesktopSettingsScreen() {
             settings = appSettings
             isLoaded = true
         }
+        // Load the stored HF token
+        hfToken = settingsRepository.getHfToken() ?: ""
     }
 
     if (!isLoaded) {
@@ -96,6 +100,17 @@ fun DesktopSettingsScreen() {
                     )
                 )
                 Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            settingsRepository.setHfToken(hfToken)
+                        }
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
+                    Text("Save Token")
+                }
+                Spacer(Modifier.height(8.dp))
             }
 
             // Catalog Section
@@ -125,7 +140,7 @@ fun DesktopSettingsScreen() {
                     subtitle = "${Runtime.getRuntime().availableProcessors()} cores detected"
                 )
                 SettingsRow(
-                    icon = Icons.Default.Ramens,
+                    icon = Icons.Default.RamenDining,
                     title = "Available Memory",
                     subtitle = formatMemory(Runtime.getRuntime().maxMemory())
                 )

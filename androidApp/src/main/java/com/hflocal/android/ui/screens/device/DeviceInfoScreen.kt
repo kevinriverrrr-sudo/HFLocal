@@ -1,6 +1,7 @@
 package com.hflocal.android.ui.screens.device
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SdStorage
@@ -37,6 +39,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,9 +59,10 @@ fun DeviceInfoScreen(nav: NavController) {
     val context = LocalContext.current
     val deviceRepository: IDeviceRepository = koinInject()
 
-    val viewModelFactory = DeviceInfoViewModelFactory(deviceRepository, context)
     val viewModel: DeviceInfoViewModel = viewModel(
-        factory = viewModelFactory
+        factory = remember(deviceRepository) {
+            DeviceInfoViewModelFactory(deviceRepository, context.applicationContext)
+        }
     )
     val state by viewModel.state.collectAsState()
 
@@ -96,6 +100,53 @@ fun DeviceInfoScreen(nav: NavController) {
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(color = HFColors.Primary)
+            }
+        } else if (state.error != null) {
+            // Error state
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ErrorOutline,
+                    contentDescription = "Error",
+                    tint = HFColors.Error,
+                    modifier = Modifier.size(64.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Detection Failed",
+                    color = HFColors.OnBackground,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = state.error,
+                    color = HFColors.OnSurfaceMuted,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = { viewModel.refreshDevice() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = HFColors.Primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Retry"
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Rescan Device")
+                }
             }
         } else {
             Column(

@@ -7,10 +7,12 @@ import com.hflocal.shared.data.local.db.HFLocalDatabase
 
 actual class DatabaseDriverFactory(private val context: Context) {
     actual fun createDriver(): SqlDriver {
-        return AndroidSqliteDriver(
+        val driver = AndroidSqliteDriver(
             schema = HFLocalDatabase.Schema,
             context = context,
             name = "hflocal.db"
         )
+        driver.execute(null, "PRAGMA foreign_keys = ON;", 0)
+        return driver
     }
 }

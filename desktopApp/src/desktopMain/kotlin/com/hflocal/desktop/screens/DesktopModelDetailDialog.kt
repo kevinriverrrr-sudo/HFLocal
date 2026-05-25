@@ -134,7 +134,7 @@ fun DesktopModelDetailDialog(
                 Spacer(Modifier.height(12.dp))
 
                 // Gated warning
-                if (model.gated) {
+                if (model.gated != "false" && model.gated.isNotEmpty()) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = HFColors.Warning.copy(alpha = 0.1f)
@@ -243,13 +243,13 @@ fun DesktopModelDetailDialog(
                         it.rfilename.endsWith(".gguf", ignoreCase = true)
                     }
                     if (ggufFile != null) {
-                        FilledButton(
+                        Button(
                             onClick = {
                                 onDownloadClick(model.id, ggufFile.rfilename)
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.filledButtonColors(
+                            colors = ButtonDefaults.buttonColors(
                                 containerColor = HFColors.Primary
                             )
                         ) {

@@ -61,50 +61,64 @@ class SettingsViewModel(
 
     fun updateTheme(theme: String) {
         viewModelScope.launch {
-            val current = _state.value.settings
-            updateSettings(current.copy(theme = theme))
+            val updated = _state.updateAndGet { it.copy(
+                settings = it.settings.copy(theme = theme)
+            ) }.settings
+            updateSettings(updated)
         }
     }
 
     fun toggleAnimations(enabled: Boolean) {
         viewModelScope.launch {
-            val current = _state.value.settings
-            updateSettings(current.copy(animationsEnabled = enabled))
+            val updated = _state.updateAndGet { it.copy(
+                settings = it.settings.copy(animationsEnabled = enabled)
+            ) }.settings
+            updateSettings(updated)
         }
     }
 
     fun toggleWifiOnly(enabled: Boolean) {
         viewModelScope.launch {
-            val current = _state.value.settings
-            updateSettings(current.copy(downloadOnlyOnWifi = enabled))
+            val updated = _state.updateAndGet { it.copy(
+                settings = it.settings.copy(downloadOnlyOnWifi = enabled)
+            ) }.settings
+            updateSettings(updated)
         }
     }
 
     fun toggleGatedModels(show: Boolean) {
         viewModelScope.launch {
-            val current = _state.value.settings
-            updateSettings(current.copy(showGatedModels = show))
+            val updated = _state.updateAndGet { it.copy(
+                settings = it.settings.copy(showGatedModels = show)
+            ) }.settings
+            updateSettings(updated)
         }
     }
 
     fun toggleChatHistory(save: Boolean) {
         viewModelScope.launch {
-            val current = _state.value.settings
-            updateSettings(current.copy(saveChatHistory = save))
+            val updated = _state.updateAndGet { it.copy(
+                settings = it.settings.copy(saveChatHistory = save)
+            ) }.settings
+            updateSettings(updated)
         }
     }
 
     fun updateDefaultSort(sort: String) {
         viewModelScope.launch {
-            val current = _state.value.settings
-            updateSettings(current.copy(defaultSort = sort))
+            val updated = _state.updateAndGet { it.copy(
+                settings = it.settings.copy(defaultSort = sort)
+            ) }.settings
+            updateSettings(updated)
         }
     }
 
     fun updateSystemPrompt(prompt: String) {
         viewModelScope.launch {
-            val current = _state.value.settings
-            updateSettings(current.copy(defaultSystemPrompt = prompt))
+            val updated = _state.updateAndGet { it.copy(
+                settings = it.settings.copy(defaultSystemPrompt = prompt)
+            ) }.settings
+            updateSettings(updated)
         }
     }
 

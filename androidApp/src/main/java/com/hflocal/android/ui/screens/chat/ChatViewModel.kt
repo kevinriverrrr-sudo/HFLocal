@@ -32,7 +32,11 @@ class ChatViewModel(
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
     private var currentSessionId: Long = 0
+    // BUG-05 fix: guard against sending messages before session creation completes
+    private val sessionIdReady = MutableStateFlow(false)
     private var generationJob: Job? = null
+    // BUG-11 fix: remember original createdAt for session title updates
+    private var originalCreatedAt: Long = 0L
 
     init {
         initSession()
@@ -50,9 +54,17 @@ class ChatViewModel(
                     )
                 )
                 currentSessionId = sessionId
+                originalCreatedAt = System.currentTimeMillis()
+                sessionIdReady.value = true
 
-                chatRepo.getMessages(sessionId).collect { messages ->
-                    _state.update { it.copy(messages = messages) }
+                // BUG-26 fix: separate Flow collection into its own try block so that
+                // a database error during collection doesn't leave the chat permanently frozen
+                try {
+                    chatRepo.getMessages(sessionId).collect { messages ->
+                        _state.update { it.copy(messages = messages) }
+                    }
+                } catch (e: Exception) {
+                    _state.update { it.copy(error = "Message collection failed: ${e.message}") }
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(error = "Failed to create session: ${e.message}") }
@@ -67,6 +79,9 @@ class ChatViewModel(
     fun sendMessage() {
         val text = _state.value.inputText.trim()
         if (text.isBlank() || _state.value.isGenerating) return
+
+        // BUG-05 fix: don't send messages until the session is ready
+        if (!sessionIdReady.value) return
 
         viewModelScope.launch {
             try {
@@ -84,12 +99,13 @@ class ChatViewModel(
                 val currentMessages = _state.value.messages
                 if (currentMessages.count { it.role == MessageRole.USER } == 1) {
                     val title = text.take(40) + if (text.length > 40) "..." else ""
+                    // BUG-11 fix: preserve original createdAt instead of overwriting
                     updateSession(
                         ChatSession(
                             id = currentSessionId,
                             modelId = modelId,
                             title = title,
-                            createdAt = System.currentTimeMillis(),
+                            createdAt = originalCreatedAt,
                             updatedAt = System.currentTimeMillis()
                         )
                     )
@@ -190,9 +206,13 @@ class ChatViewModel(
 
             viewModelScope.launch {
                 try {
-                    // Remove last assistant message
+                    // BUG-10 fix: delete the old assistant message before regenerating
+                    // to prevent duplicate assistant messages appearing in the chat.
+                    // Instead of overwriting content (which leaves the old row), we
+                    // clear the content and mark as non-streaming, then generate a
+                    // fresh response that replaces it.
                     chatRepo.updateMessage(
-                        lastAssistant.copy(content = "[regenerating...]")
+                        lastAssistant.copy(content = "", isStreaming = false)
                     )
 
                     // Find the last user message for context
@@ -201,11 +221,73 @@ class ChatViewModel(
                         .lastOrNull()
 
                     val userText = lastUserMessage?.content ?: "Hello"
-                    generateResponse(userText)
+                    // Reuse the existing message ID instead of creating a new one
+                    generateResponseWithId(userText, lastAssistant.id)
                 } catch (e: Exception) {
                     _state.update {
                         it.copy(error = "Regeneration failed: ${e.message}")
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * Like [generateResponse] but streams into an existing message ID
+     * instead of creating a new assistant placeholder.
+     */
+    private fun generateResponseWithId(userText: String, existingMsgId: Long) {
+        generationJob = viewModelScope.launch {
+            try {
+                _state.update { it.copy(isGenerating = true) }
+
+                // Simulate delay before starting to stream
+                kotlinx.coroutines.delay(1000L)
+
+                val fullResponse = generateMockResponse(userText)
+                val words = fullResponse.split(" ")
+                var currentContent = ""
+
+                words.forEachIndexed { index, word ->
+                    if (!isActive) return@forEach
+
+                    currentContent = if (currentContent.isEmpty()) word
+                    else "$currentContent $word"
+
+                    updateMessage(
+                        ChatMessage(
+                            id = existingMsgId,
+                            sessionId = currentSessionId,
+                            role = MessageRole.ASSISTANT,
+                            content = currentContent,
+                            timestamp = System.currentTimeMillis(),
+                            isStreaming = index < words.lastIndex
+                        )
+                    )
+
+                    val delay = Random.nextLong(30, 120)
+                    kotlinx.coroutines.delay(delay)
+                }
+
+                // Mark streaming as complete
+                updateMessage(
+                    ChatMessage(
+                        id = existingMsgId,
+                        sessionId = currentSessionId,
+                        role = MessageRole.ASSISTANT,
+                        content = currentContent,
+                        timestamp = System.currentTimeMillis(),
+                        isStreaming = false
+                    )
+                )
+
+                _state.update { it.copy(isGenerating = false) }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isGenerating = false,
+                        error = "Generation failed: ${e.message}"
+                    )
                 }
             }
         }

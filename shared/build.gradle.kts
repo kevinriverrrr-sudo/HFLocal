@@ -1,15 +1,19 @@
 plugins {
-    id("org.jetbrains.kotlin.multiplatform")
-    id("org.jetbrains.compose") version "1.7.3"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.1.10"
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.10"
-    id("app.cash.sqldelight") version "2.0.2"
-    id("com.android.library")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.compose.multiplatform)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.sql.delight)
+    alias(libs.plugins.android.library)
 }
 
 kotlin {
     androidTarget()
-    jvm("desktop")
+    jvm("desktop") {
+        compilations.all {
+            kotlinOptions.jvmTarget = "17"
+        }
+    }
 
     sourceSets {
         commonMain.dependencies {

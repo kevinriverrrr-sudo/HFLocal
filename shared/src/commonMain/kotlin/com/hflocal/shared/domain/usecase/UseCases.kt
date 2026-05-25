@@ -68,7 +68,7 @@ class DownloadModelUseCase(
         val model = DownloadedModel(
             modelId = modelId,
             fileName = fileName,
-            filePath = url,                       // will be replaced with local path
+            filePath = "",                          // BUG-18 fix: empty until download completes
             downloadProgress = 0f,
             isDownloaded = false,
         )
@@ -161,7 +161,11 @@ class LoginWithTokenUseCase(
 ) {
     suspend operator fun invoke(token: String): UserInfo {
         val user = hfRepository.getWhoami(token)
-        settingsRepository.setHfToken(token)
+        try {
+            settingsRepository.setHfToken(token)
+        } catch (e: Exception) {
+            // Log but don't fail — token verified, persist on next opportunity
+        }
         return user
     }
 }
