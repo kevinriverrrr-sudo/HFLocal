@@ -144,7 +144,7 @@ class ChatViewModel(
                 var currentContent = ""
 
                 words.forEachIndexed { index, word ->
-                    if (!isActive) return@forEach
+                    if (!coroutineContext.isActive) return@forEach
 
                     currentContent = if (currentContent.isEmpty()) word
                     else "$currentContent $word"
@@ -249,7 +249,7 @@ class ChatViewModel(
                 var currentContent = ""
 
                 words.forEachIndexed { index, word ->
-                    if (!isActive) return@forEach
+                    if (!coroutineContext.isActive) return@forEach
 
                     currentContent = if (currentContent.isEmpty()) word
                     else "$currentContent $word"

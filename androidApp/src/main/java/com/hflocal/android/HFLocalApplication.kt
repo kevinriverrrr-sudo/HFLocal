@@ -19,6 +19,24 @@ class HFLocalApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        // Global crash handler — write crash info to file for debugging
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            val log = StringBuilder()
+            log.append("=== CRASH LOG ===\n")
+            log.append("Time: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())}\n")
+            log.append("Thread: ${thread.name}\n")
+            log.append("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} (SDK ${android.os.Build.VERSION.SDK_INT})\n")
+            log.append("\nStack Trace:\n")
+            log.append(android.util.Log.getStackTraceString(throwable))
+            log.append("\n=== END ===\n")
+            try {
+                val file = java.io.File(filesDir, "crash_log.txt")
+                file.writeText(log.toString())
+            } catch (_: Exception) {}
+            // Let the system handle the crash normally
+            defaultUncaughtExceptionHandler?.uncaughtException(thread, throwable)
+        }
+
         // Initialize Koin
         startKoin {
             androidLogger(Level.ERROR)
