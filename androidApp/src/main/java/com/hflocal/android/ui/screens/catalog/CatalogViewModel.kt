@@ -49,9 +49,13 @@ class CatalogViewModel(
     }
 
     init {
-        val tier = deviceRepo.getCurrentTier()
-        _state.value = _state.value.copy(tier = tier.name)
-        loadModels()
+        viewModelScope.launch {
+            try {
+                val tier = deviceRepo.getCurrentTier()
+                _state.update { it.copy(tier = tier.name) }
+            } catch (_: Exception) { }
+            loadModels()
+        }
     }
 
     fun loadModels() {

@@ -345,7 +345,10 @@ private fun ModelCard(
                 }
                 Spacer(Modifier.width(8.dp))
                 FilledButton(
-                    onClick = onClick,
+                    onClick = {
+                        // Navigate to model detail where download is available
+                        onClick()
+                    },
                     colors = ButtonDefaults.filledButtonColors(
                         containerColor = HFColors.Primary
                     )

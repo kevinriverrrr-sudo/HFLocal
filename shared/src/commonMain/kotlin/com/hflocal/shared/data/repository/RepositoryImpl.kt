@@ -8,6 +8,7 @@ import com.hflocal.shared.domain.model.*
 import com.hflocal.shared.domain.repository.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 class HuggingFaceRepositoryImpl(
@@ -219,28 +220,54 @@ class SettingsRepositoryImpl(
     private val database: HFLocalDatabase
 ) : ISettingsRepository {
 
-    // Settings stored in-memory for now. A settings table could be added
-    // to the schema for full persistence in a future iteration.
-    private var settings: AppSettings = AppSettings()
-    private var hfToken: String? = null
+    private val queries = database.hFLocalDatabaseQueries
+
+    private var cachedSettings: AppSettings? = null
 
     override fun getSettings(): Flow<AppSettings> {
-        return kotlinx.coroutines.flow.flowOf(settings)
+        return flow {
+            val settings = loadSettingsFromDb()
+            emit(settings)
+        }
     }
 
     override suspend fun updateSettings(newSettings: AppSettings) {
-        settings = newSettings
+        val json = kotlinx.serialization.json.Json.encodeToString(
+            com.hflocal.shared.domain.model.AppSettings.serializer(),
+            newSettings
+        )
+        queries.setSetting(key = "app_settings", value_ = json)
+        cachedSettings = newSettings
     }
 
     override suspend fun getHfToken(): String? {
-        return hfToken
+        val row = try {
+            queries.getSettingByKey("hf_token").executeAsOneOrNull()
+        } catch (_: Exception) { null }
+        return row
     }
 
     override suspend fun setHfToken(token: String) {
-        hfToken = token
+        queries.setSetting(key = "hf_token", value_ = token)
     }
 
     override suspend fun clearHfToken() {
-        hfToken = null
+        queries.deleteSettingByKey("hf_token")
+    }
+
+    private suspend fun loadSettingsFromDb(): AppSettings {
+        cachedSettings?.let { return it }
+        val json = try {
+            queries.getSettingByKey("app_settings").executeAsOneOrNull()
+        } catch (_: Exception) { null }
+        val settings = if (json != null) {
+            try {
+                kotlinx.serialization.json.Json.decodeFromString<com.hflocal.shared.domain.model.AppSettings>(json)
+            } catch (_: Exception) { AppSettings() }
+        } else {
+            AppSettings()
+        }
+        cachedSettings = settings
+        return settings
     }
 }

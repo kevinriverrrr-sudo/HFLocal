@@ -48,12 +48,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.hflocal.android.service.DownloadService
 import com.hflocal.shared.ui.navigation.Screen
 import com.hflocal.shared.ui.theme.HFColors
 import org.koin.androidx.compose.koinViewModel
@@ -67,6 +69,7 @@ fun ModelDetailScreen(
     val viewModel: ModelDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
 
     LaunchedEffect(modelId) {
         viewModel.loadModel(modelId)
@@ -162,7 +165,16 @@ fun ModelDetailScreen(
                 ModelDetailContent(
                     state = state,
                     nav = nav,
-                    onRetry = { viewModel.loadModel(modelId) }
+                    onRetry = { viewModel.loadModel(modelId) },
+                    onDownloadFile = { fileName, author, downloadUrl ->
+                        DownloadService.enqueue(
+                            context = context,
+                            modelId = modelId,
+                            fileName = fileName,
+                            author = author,
+                            downloadUrl = downloadUrl
+                        )
+                    }
                 )
             }
         }
@@ -174,7 +186,8 @@ fun ModelDetailScreen(
 private fun ModelDetailContent(
     state: ModelDetailUiState,
     nav: NavController,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onDownloadFile: (String, String, String) -> Unit
 ) {
     val model = state.model!!
     val ggufFiles = model.siblings.ggufFiles()
@@ -382,7 +395,14 @@ private fun ModelDetailContent(
             ) { file ->
                 GgufFileCard(
                     file = file,
-                    maxModelSizeBytes = state.maxModelSizeBytes
+                    maxModelSizeBytes = state.maxModelSizeBytes,
+                    onDownload = {
+                        onDownloadFile(
+                            file.rfilename,
+                            model.author,
+                            "https://huggingface.co/${model.id}/resolve/main/${file.rfilename}"
+                        )
+                    }
                 )
             }
         }
@@ -412,7 +432,8 @@ private fun StatItem(
 @Composable
 private fun GgufFileCard(
     file: com.hflocal.shared.domain.model.ModelFile,
-    maxModelSizeBytes: Long
+    maxModelSizeBytes: Long,
+    onDownload: () -> Unit
 ) {
     val compatible = isFileCompatible(file.size, maxModelSizeBytes)
     val fileSizeStr = formatFileSize(file.size)
@@ -481,7 +502,7 @@ private fun GgufFileCard(
 
             // Download button
             FilledButton(
-                onClick = { /* TODO: trigger download */ },
+                onClick = onDownload,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.filledButtonColors(

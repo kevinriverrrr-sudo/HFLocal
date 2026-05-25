@@ -52,7 +52,7 @@ class HuggingFaceApi(private val http: HttpClient) {
 
     /**
      * Build the direct-download URL for a specific file inside a model repo.
-     * This is a pure URL-construction method – no network call.
+     * This is a pure URL-construction method - no network call.
      */
     fun getDownloadUrl(modelId: String, filename: String): String =
         "$BASE/$modelId/resolve/main/$filename"

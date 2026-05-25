@@ -4,6 +4,9 @@ import android.content.Context
 import android.os.Build
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import com.hflocal.android.ui.screens.auth.AuthViewModel
+import com.hflocal.android.ui.screens.catalog.CatalogViewModel
+import com.hflocal.android.ui.screens.catalog.ModelDetailViewModel
 import com.hflocal.android.ui.screens.chat.ChatViewModel
 import com.hflocal.android.ui.screens.downloads.DownloadsViewModel
 import com.hflocal.android.ui.screens.models.MyModelsViewModel
@@ -85,6 +88,9 @@ val androidModule = module {
     }
 
     // ViewModels
+    viewModel { AuthViewModel(get()) }
+    viewModel { CatalogViewModel(get(), get()) }
+    viewModel { ModelDetailViewModel(get(), get()) }
     viewModel { (modelId: String) ->
         ChatViewModel(
             modelId = modelId,

@@ -9,12 +9,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.hflocal.android.ui.screens.auth.AuthScreen
 import com.hflocal.android.ui.screens.catalog.CatalogScreen
+import com.hflocal.android.ui.screens.catalog.ModelDetailScreen
 import com.hflocal.android.ui.screens.chat.ChatScreen
 import com.hflocal.android.ui.screens.device.DeviceInfoScreen
 import com.hflocal.android.ui.screens.downloads.DownloadsScreen
@@ -91,6 +94,13 @@ fun AppNavigation() {
             }
             composable(Screen.Catalog.route) {
                 CatalogScreen(nav)
+            }
+            composable(
+                route = Screen.ModelDetail.route,
+                arguments = listOf(navArgument("modelId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val modelId = backStackEntry.arguments?.getString("modelId") ?: ""
+                ModelDetailScreen(nav, modelId)
             }
             composable(Screen.MyModels.route) {
                 MyModelsScreen(nav)

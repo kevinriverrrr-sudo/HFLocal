@@ -373,12 +373,12 @@ private fun SettingsRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    onClick: () -> Unit = {}
+    onClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -402,7 +402,7 @@ private fun SettingsRow(
                 )
             }
         }
-        if (onClick != {}) {
+        if (onClick != null) {
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = null,
